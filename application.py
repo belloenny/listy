@@ -1,16 +1,15 @@
-from flask import Flask, render_template, request, redirect, jsonify, url_for, flash, send_from_directory
+from flask import Flask, make_response, session as login_session, render_template as flask_render, request, redirect, jsonify, url_for, flash, send_from_directory
 from sqlalchemy import create_engine, asc, desc
 from authentication import fbconnect, fbdisconnect, gconnect, gdisconnect, disconnect
 from sqlalchemy.orm import sessionmaker
 from models import Base, User, Listing, Category
-from flask import session as login_session
 import random
 import string
 from oauth2client.client import flow_from_clientsecrets
 from oauth2client.client import FlowExchangeError
 import httplib2
 import json
-from flask import make_response
+from functools import wraps
 import requests
 from werkzeug.utils import secure_filename
 import os
@@ -30,6 +29,39 @@ Base.metadata.bind = engine
 DBSession = sessionmaker(bind=engine)
 session = DBSession()
 
+def render_template(template_name, **params):
+    params['login_session'] = login_session
+    return flask_render(template_name, **params)
+
+def login_required(func):
+    @wraps(func) # this requires an import
+    def wrapper():
+        if 'username' not in login_session:
+            return redirect('login')
+        else:
+            func()
+    return wrapper
+
+def cat_exists(func):
+    @wraps(func) # this requires an import
+    def wrapper(category_name):
+        if session.query(Category).filter_by(name=category_name).scalar() is None:
+            flash("This category does not exist")
+            return redirect(url_for('showListings'))
+        else:
+            func()
+    return wrapper
+
+def listing_exists(func):
+    @wraps(func) # this requires an import
+    def wrapper(listing_name):
+        if session.query(Listing).filter_by(name=listing_name).scalar() is None:
+            flash("This listing does not exist")
+            return redirect(url_for('showListings'))
+        else:
+            func()
+    return wrapper
+
 # Show all listings
 @app.route('/')
 @app.route('/listy/')
@@ -39,12 +71,12 @@ def showListings():
     for cat in session.query(Category).all():
         categories[cat.name] = listings.filter_by(category_id=getCategoryID(cat.name)).count()
     return render_template('listings.html', 
-        listings=listings, 
-        login_session=login_session, 
+        listings=listings,
         categories=categories)
 
 # show listings filtered by category
 @app.route('/listy/<category_name>')
+@cat_exists
 def showListingsByCat(category_name):
     filteredListings = session.query(Listing).filter_by(category_id=getCategoryID(category_name))
     allListings = session.query(Listing).order_by(asc(Listing.name))
@@ -53,7 +85,6 @@ def showListingsByCat(category_name):
         categories[cat.name] = allListings.filter_by(category_id=getCategoryID(cat.name)).count()
     return render_template('listings.html', 
         listings=filteredListings, 
-        login_session=login_session, 
         categories=categories, 
         category_name=category_name)
 
@@ -67,39 +98,36 @@ def showListingsByUsername(username):
     for cat in session.query(Category).all():
         categories[cat.name] = allListings.filter_by(category_id=getCategoryID(cat.name)).count()
     return render_template('listings.html', 
-        listings=filteredListings, 
-        login_session=login_session, 
+        listings=filteredListings,
         categories=categories, 
         category_name=username)
 
 # Create a new listing
-
+@login_required
 @app.route('/listy/new/', methods=['GET', 'POST'])
 def newListing():
-    if 'username' not in login_session:
-        return redirect('/login')
     categories = session.query(Category).all()
     if request.method == 'POST':
         if checkIfExists(request.form['name'],Listing):
             existingListing = session.query(Listing).filter_by(name=request.form['name']).one()
             flash('A listing called "%s" already exists. Please re-name your listing.' % existingListing.name)
-            return render_template('newListing.html', login_session=login_session, categories=categories)
+            return render_template('newListing.html', categories=categories)
         elif request.form['name'] == '':
             flash('Please enter a name for your listing.')
-            return render_template('newListing.html', login_session=login_session, categories=categories)
+            return render_template('newListing.html', categories=categories)
         elif request.form['new-category'] == '' and request.form['category'] == 'False':
             flash('You must select or create a category')
-            return render_template('newListing.html', login_session=login_session, categories=categories)
+            return render_template('newListing.html', categories=categories)
         elif request.form['description'] == '':
             flash('You must fill out a description')
-            return render_template('newListing.html', login_session=login_session, categories=categories)
+            return render_template('newListing.html', categories=categories)
         else:
             imagename = ''
             # check if user uploaded an image
             if request.files['image']:
                 if 'image' not in request.files:
                     flash('No file part')
-                    return render_template('newListing.html', login_session=login_session, categories=categories)
+                    return render_template('newListing.html', categories=categories)
                 image = request.files['image']
                 # if user does not select file, browser also
                 # submits an empty part without the filename
@@ -112,7 +140,7 @@ def newListing():
             if request.form['new-category']:
                 if checkIfExists(request.form['new-category'],Category):
                     flash('A category with that name already exists. Please re-name your category.')
-                    return render_template('newListing.html', login_session=login_session, categories=categories)
+                    return render_template('newListing.html', categories=categories)
                 else:
                     newCategory = Category(name=request.form['new-category'])
                     session.add(newCategory)
@@ -139,18 +167,17 @@ def newListing():
                 session.commit()
                 return redirect(url_for('showListings'))   
     else:
-        return render_template('newListing.html', login_session=login_session, categories=categories)
+        return render_template('newListing.html', categories=categories)
 
 # Edit a listing
+@login_required
 @app.route('/listy/<listing_name>/edit', methods=['GET', 'POST'])
+@listing_exists
 def editListing(listing_name):
-    if 'username' not in login_session:
-        return redirect('/login')
     editedListing = session.query(Listing).filter_by(name=listing_name).one()
     if login_session['user_id'] != editedListing.user_id:
         flash('Your are not authorized to edit this listing')
         return redirect(url_for('showListings'))
-    
     categories = session.query(Category).all()
     if request.method == 'POST':
         if request.form['name']:
@@ -160,7 +187,7 @@ def editListing(listing_name):
         if request.files['image']:
             if 'image' not in request.files:
                 flash('No file part')
-                return render_template('newListing.html', login_session=login_session, categories=categories)
+                return render_template('newListing.html', categories=categories)
             image = request.files['image']
             # if user does not select file, browser also
             # submits an empty part without the filename
@@ -174,7 +201,7 @@ def editListing(listing_name):
         if request.form['new-category']:
             if checkIfExists(request.form['new-category'],Category):
                 flash('A category with that name already exists. Please re-name your category.')
-                return render_template('editListing.html', login_session=login_session, categories=categories)
+                return render_template('editListing.html', categories=categories)
             else:
                 newCategory = Category(name=request.form['new-category'])
                 session.add(newCategory)
@@ -187,15 +214,15 @@ def editListing(listing_name):
         flash('%s was successfully updated' % editedListing.name)
         return redirect(url_for('showListings'))
     else:
-        return render_template('editListing.html', listing=editedListing, login_session=login_session, categories=categories)
+        return render_template('editListing.html', listing=editedListing, categories=categories)
 
 # delete a listing
+@login_required
 @app.route('/listy/<listing_name>/delete', methods=['GET', 'POST'])
+@listing_exists
 def deleteListing(listing_name):
     listingToDelete = session.query(
         Listing).filter_by(name=listing_name).one()
-    if 'username' not in login_session:
-        return redirect('/login')
     if listingToDelete.user_id != login_session['user_id']:
         flash('Your are not authorized to delete this listing')
         return redirect(url_for('showListings'))
@@ -205,13 +232,13 @@ def deleteListing(listing_name):
         session.commit()
         return redirect(url_for('showListings'))
     else:
-        return render_template('deleteListing.html', listing=listingToDelete, login_session=login_session)
+        return render_template('deleteListing.html', listing=listingToDelete)
 
 # delete a category
+@login_required
 @app.route('/categories/<category_name>/delete', methods=['GET', 'POST'])
+@cat_exists
 def deleteCategory(category_name):
-    if 'username' not in login_session:
-        return redirect('/login')
     categoryToDelete = session.query(Category).filter_by(name=category_name).one()
     if request.method == 'POST':
         allListings = session.query(Listing).all()
@@ -224,13 +251,12 @@ def deleteCategory(category_name):
         session.commit()
         return redirect(url_for('showListings'))
     else:
-        return render_template('deleteCategory.html', category=categoryToDelete, login_session=login_session)
+        return render_template('deleteCategory.html', category=categoryToDelete)
 
 # delete account
+@login_required
 @app.route('/delete-account', methods=['GET', 'POST'])
 def deleteAccount():
-    if 'username' not in login_session:
-        return redirect('/login')
     user = getUserInfo(login_session['user_id'])
     if request.method == 'POST':
         if user.id != login_session['user_id']:
@@ -246,7 +272,7 @@ def deleteAccount():
         session.commit()
         return redirect(url_for('disconnect'))
     else:
-        return render_template('deleteAccount.html', user=user, login_session=login_session)
+        return render_template('deleteAccount.html', user=user)
 
 @app.route('/uploads/<filename>')
 def uploaded_file(filename):
@@ -254,12 +280,10 @@ def uploaded_file(filename):
                                filename)
 
 # edit profile
+@login_required
 @app.route('/profile', methods=['GET', 'POST'])
 def editProfile():
-    if 'username' not in login_session:
-        return redirect('/login')
     user = getUserInfo(login_session['user_id'])
-    print login_session['user_id']
     if user.id != login_session['user_id']:
         flash('Your are not authorized to edit this profile')
         return redirect(url_for('showListings'))
@@ -270,7 +294,7 @@ def editProfile():
                 flash("Password updated")
             else:
                 flash('Old password is incorrect')
-                return render_template('editProfile.html', user=user, login_session=login_session)
+                return render_template('editProfile.html', user=user)
         if request.form['username']:
             if getUserByName(request.form['username']) is None:
                 login_session['username'] = request.form['username']
@@ -278,12 +302,12 @@ def editProfile():
                 flash("Username updated")
             else:
                 flash("Username already exists.")
-                return render_template('editProfile.html', user=user, login_session=login_session)
+                return render_template('editProfile.html', user=user)
         if request.files['picture']:
             # check if the post request has the file part
             if 'picture' not in request.files:
                 flash('No file part')
-                return render_template('editProfile.html', user=user, login_session=login_session)
+                return render_template('editProfile.html', user=user)
             picture = request.files['picture']
             # if user does not select file, browser also
             # submits an empty part without the filename
@@ -303,28 +327,29 @@ def editProfile():
                 flash("Email address updated")
             else:
                 flash("Email address already exists.")
-                return render_template('editProfile.html', user=user, login_session=login_session)
+                return render_template('editProfile.html', user=user)
         session.add(user)
         session.commit()
-        return render_template('editProfile.html', user=user, login_session=login_session)
+        return render_template('editProfile.html', user=user)
     else:
-        return render_template('editProfile.html', user=user, login_session=login_session)
+        return render_template('editProfile.html', user=user)
     
-
 # Show a listing
 @app.route('/listy/<listing_name>/')
+@listing_exists
 def showListing(listing_name):
     listing = session.query(Listing).filter_by(name=listing_name).one()
-    return render_template('showListing.html', listing=listing, login_session=login_session)
-
+    return render_template('showListing.html', listing=listing)
 
 # JSON APIs to view Listing Information
 @app.route('/listy/<listing_name>/JSON')
+@listing_exists
 def listingJSON(listing_name):
     listing = session.query(Listing).filter_by(name=listing_name).one()
     return jsonify(listing.serialize)
 
 @app.route('/listy/category/<category_name>/JSON')
+@cat_exists
 def listingsByCategoryJSON(category_name):
     cat_id = getCategoryID(category_name)
     category = session.query(Category).filter_by(id=cat_id).one()
@@ -574,14 +599,13 @@ def gconnect():
     output += '!</h1>'
     output += '<img src="'
     output += login_session['picture']
-    output += ' " style = "width: 300px; height: 300px;border-radius: 150px;-webkit-border-radius: 150px;-moz-border-radius: 150px;"> '
+    output += ' " style = "width: 300px; height: 300px;' \
+                'border-radius: 150px;-webkit-border-radius: 150px;'\
+                '-moz-border-radius: 150px;"> '
     flash("you are now logged in as %s" % login_session['username'])
-    print "done!"
     return output
 
 # DISCONNECT - Revoke a current user's token and reset their login_session
-
-
 @app.route('/gdisconnect')
 def gdisconnect():
     # Only disconnect a connected user.
@@ -607,7 +631,6 @@ def gdisconnect():
         response = make_response(json.dumps('Failed to revoke token for given user.', 400))
         response.headers['Content-Type'] = 'application/json'
         return response
-
 
 # Disconnect based on provider
 @app.route('/disconnect')
