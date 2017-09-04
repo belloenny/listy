@@ -1,0 +1,29 @@
+{% extends "main.html" %}
+{% block content %}
+{% include "header.html" %}
+	
+	<div class="flex show-listing-header">
+		<div class="flex__left">
+			<div class="divider green"></div><!-- /.divider green -->
+			<h1>{{ listing.name }}</h1>
+			<div class="divider green"></div><!-- /.divider green -->
+			<p style="margin-top:15px">Posted by <a href="{{url_for('showListingsByUsername', username=listing.user['username'])}}">{{listing.user['username']}}</a> at {{listing.date.strftime("%I:%M %p on %B %d, %Y")}}</p>
+			<p>Listed under category: <a href="{{url_for('showListingsByCat', category_name=listing.category['name'])}}">{{listing.category['name']}}</a></p>
+
+			{% if listing.user_id == login_session['user_id'] %}
+			<a href="{{url_for('editListing', listing_name = listing.name )}}">Edit Listing</a> | 
+			<a href="{{url_for('deleteListing', listing_name = listing.name )}}">Delete Listing</a>
+			{% endif %}
+			
+			<hr />
+			<p>{{listing.description}}</p>
+		</div>
+		<div class="flex__right">
+			{% if listing.image %}
+			<img src="{{ url_for('uploaded_file', filename=listing.image) }}" alt="" class="img-responsive" />
+			{% else %}
+			<img src="{{ url_for('static', filename='no-image-icon-15.png') }}" class="img-responsive">
+			{% endif %}
+		</div><!-- /.flex__right -->
+	</div>
+{% endblock %}

@@ -1,0 +1,78 @@
+{% extends "main.html" %}
+{% block content %}
+{% include "header.html" %}
+	<div class="flex edit-profile">
+		<div class="flex__left">
+			<div class="divider green"></div><!-- /.divider green -->
+			<h1>{{ user.username }}'s Profile</h1>
+			<div class="divider green"></div><!-- /.divider green -->
+			<a href="{{url_for('deleteAccount', username = user.username )}}" class="text-right margin-top15" style="display:block">Delete Account</a>
+			{% if login_session['provider'] != 'google' and login_session['provider'] != 'facebook' %}
+			<form action="{{ url_for('editProfile')}}" method="post" enctype="multipart/form-data">
+				<div class="form-group">
+					<style>
+						.form__item input {
+							display:none;
+						}
+					</style>
+					<div class="form__item">
+						<p class="small"><span class="edit">Change Password</span></p>
+						
+						<input type="password" class="form-control" maxlength="100" name="old-password" placeholder="Old Password"><br /><br />
+						<input type="password" class="form-control" maxlength="100" name="new-password" placeholder="New Password">
+						<div class="padding-bottom"></div>
+					</div><!-- /.form__item -->
+					<div class="form__item">
+						<label for="picture">
+						{% if user.picture %}
+						<img src="{{ url_for('uploaded_file', filename=user.picture) }}" alt="" class="profile-picture" /> 
+						{% else %} 
+						<img src="{{ url_for('static', filename='blank_user.gif') }}">
+						{% endif %}
+						<br />
+						<span class="edit small">edit</span></label>
+						<input type ="file" name="picture" placeholder="{{user.picture}}">
+						<div class="padding-bottom"></div>
+					</div><!-- /.form__item -->
+					<div class="form__item">
+						<label for="name">Username: {{user.username}} <br /><span class="edit small">edit</span></label>
+						<input type="text" class="form-control" name="username" placeholder="{{user.username}}">
+						<div class="padding-bottom"></div>
+					</div><!-- /.form__item -->
+
+					<div class="form__item">
+						<label for="name">Email: {{user.email}} <br /><span class="edit small">edit</span></label>
+						<input type ="text" class="form-control" maxlength="100" name="email" placeholder="{{user.email}}">
+						<div class="padding-bottom"></div>
+					</div><!-- /.form__item -->
+
+					<button type="submit" class="btn btn-default" id="submit" type="submit">
+					<span class="glyphicon glyphicon-ok" aria-hidden="true"></span>Save</button>
+				</div>
+			</form>
+			{% else %}
+			<p class="margin-top15">Username: {{login_session['username']}}</p>
+			<p class="small"><em>Note: Your user account was created with {{login_session['provider']}} and cannot be edited.</em> <a href="{{url_for('showListings')}}">Return to listings</a></p>
+			{% endif %}
+		</div><!-- /.close-flex__left -->
+		<div class="flex__right">
+			{% if login_session['picture'] %}
+				{% if login_session['provider'] == 'listy' %}
+				<img src="{{ url_for('uploaded_file', filename=login_session['picture']) }}" alt="" class="img-responsive" />
+				{% else %}
+				<img src="{{login_session['picture']}}" alt="" class="img-responsive" />
+				{% endif %}
+			{% else %}
+			<img src="{{ url_for('static', filename='blank_user.gif') }}" class="img-responsive">
+			{% endif %}
+		</div><!-- /.flex__right -->
+	</div><!-- /.edit-profile -->
+
+	<script>
+		jQuery(document).ready(function($) {
+			$('.edit').click(function(){
+				$(this).parent().parent().find('input').slideToggle('fast');
+			})
+		});
+	</script>
+{% endblock %}

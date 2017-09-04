@@ -1,0 +1,95 @@
+{% extends "main.html" %}
+{% block content %}
+{% include "header.html" %}
+	<div class="row">
+		<div class="col-md-12">
+			<div class="divider green"></div>
+			<h1>Edit your listing</h1>
+			<div class="divider green"></div><!-- /.divider green -->
+			<a href="{{url_for('deleteListing',listing_name = listing.name)}}"> Delete</a> | <a href = '{{url_for('showListings')}}'>Cancel</a>
+		</div>
+	</div>
+	<div class="row">
+		<div class="col-md-6 padding-top">
+			<form action="{{ url_for('editListing',listing_name = listing.name)}}" method="post" enctype="multipart/form-data">
+				<style>
+						.form__item input,
+						.form__item .categories,
+						textarea.form-control  {
+							display:none;
+						}
+						.form__item .categories input {
+							display:block;
+						}
+						.form__item {
+							border-bottom:1px solid #eee;
+							padding:20px 0;
+
+						}
+						.form__item:last-child {
+							border-bottom:none;
+						}
+						.categories {
+							margin-top:10px;
+						}
+				</style>
+				<div class="form-group">
+					<div class="form__item ">
+						<label for="name">Title: {{listing.name}}<br />
+						<span class="edit small">edit</span></label>
+						<input type="text" class="form-control" name="name" placeholder="{{listing.name}}">
+					</div>
+					<div class="form__item ">
+						<label for="name">Image: <br />
+						<span class="edit small">edit</span></label>
+						{% if listing.image %}
+						<img src="{{ url_for('uploaded_file', filename=listing.image) }}" class="img-responsive" /> {% else %} 
+						<img src="{{ url_for('static', filename='blank_user.gif') }}" class="img-responsive">
+						{% endif %}
+						<input type ="file" name="image" placeholder="{{listing.image}}">
+					</div><!-- /.form__item -->
+					<div class="form__item ">
+						<label for="category">Category: {{listing.category['name']}}</label><br />
+						<span class="edit-cat small">edit</span>
+						<div class="categories">
+							<span>Select a category: </span><select name="category">
+							{% if categories %}
+								<option value="{{listing.category['name']}}">{{listing.category['name']}}</option>
+							{% for cat in categories %}
+								{% if cat.name != listing.category['name'] %}
+								<option value="{{cat.name}}">{{cat.name}}</option>
+								{% endif %}
+							{% endfor %}
+							</select>
+							<p class="margin-top15">OR</p>
+							<label for="new-category">Create new category</label>
+							<input type="text" name="new-category" class="form-control" />
+							{% else %}
+							<p>No categories to display. Create a new one:</p>
+							<input type="text" name="new-category" class="form-control" />
+							{% endif %}
+						</div><!-- /.categories -->
+					</div>
+					<div class="form__item ">
+						<label for="name">Description: <br />
+						<span class="edit small">edit</span></label>
+						<textarea class="form-control" maxlength="100" name="description">{{listing.description}}</textarea>
+					</div>
+
+					<button type="submit" class="btn btn-default" id="submit" type="submit">
+					<span class="glyphicon glyphicon-ok" aria-hidden="true"></span>Save</button>
+				</div>
+			</form>
+		</div>
+	</div>
+	<script>
+		jQuery(document).ready(function($) {
+			$('.edit').click(function(){
+				$(this).parent().parent().find('input, textarea').slideToggle('fast');
+			})
+			$('.edit-cat').click(function(){
+				$('.categories').slideToggle('fast');
+			})
+		});
+	</script>
+{% endblock %}

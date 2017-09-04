@@ -1,0 +1,60 @@
+{% extends "main.html" %}
+{% block content %}
+{% include "header.html" %}
+{% if 'username' in login_session %}
+	{% endif %}
+	<div class="divider green"></div>
+	<div class="row listings-container">
+		<div class="col-md-4 categories">
+			<h2>Filter by Category</h2>
+			{% for cat in categories %}
+			<a class="category" href="{{url_for('showListingsByCat', category_name=cat)}}">{{cat}}</a> ({{categories[cat]}}) {% if categories[cat] == 0 %} <a href="{{url_for('deleteCategory', category_name=cat)}}" class="small">delete</a>{% endif %}<br>
+			{% endfor %}
+		</div>
+
+		<div class="col-md-8 listings">
+			<div class="flex padding-bottom">
+				<div class="flex__left">
+					<h2>Recent Listings</h2>
+				</div><!-- /.flex__left -->
+				<div class="flex__right">
+					<a href="{{url_for('newListing')}}">+ ADD NEW</a>
+				</div><!-- /.flex__right -->
+				{% if category_name %}
+			<p class="filter"><span class="glyphicon glyphicon-filter"></span>{{category_name}}&nbsp;&nbsp; <a href="{{url_for('showListings')}}">&times; remove filter</a></p>
+			{% endif %}
+			</div>
+			{% if listings.count() %}
+			{% for listing in listings %}
+			<div class="row listing">
+				<div class="col-md-2">
+					{% if listing.image %}
+					<img src="{{ url_for('uploaded_file', filename=listing.image) }}" alt="" class="img-responsive" />
+					{% else %}
+					<img src="{{ url_for('static', filename='no-image-icon-15.png') }}" class="img-responsive">
+					{% endif %}
+				</div><!-- /.col-md-2 -->
+				<div class="col-md-10">
+					<div class="flex">
+						<div class="flex__left">
+							<h3><a href="{{url_for('showListing' , listing_name=listing.name)}}">{{listing.name}}</a> 
+							{% if listing.user_id == login_session['user_id'] %}
+							<a class="small text-right" href="{{url_for('editListing',listing_name = listing.name)}}">Edit</a> <span class="small">|</span> 
+							<a class="small text-right" href="{{url_for('deleteListing',listing_name = listing.name)}}"> Delete</a>
+								{% endif %} <br /> <span class="small">Posted: {{listing.date.strftime("%m/%d/%Y at %I:%M %p")}}</span></h3>
+						</div><!-- /.flex__left -->
+						<div class="flex__right">
+							<p class="small">Posted by <a href="{{url_for('showListingsByUsername', username=listing.user['username'])}}">{{listing.user['username']}}</a> in <a href="{{url_for('showListingsByCat', category_name=listing.category['name'])}}">{{listing.category['name']}}</a></p>
+						</div><!-- /.flex__right -->
+					</div><!-- /.flex -->
+					<p>{{listing.description}}</p>
+				</div><!-- /.col-md-10 -->
+			</div><!-- /.row -->
+			<hr />
+			{% endfor %}
+			{% else %}
+			<p>No listings to display</p>
+			{% endif %}
+		</div>
+	</div>
+{% endblock %}

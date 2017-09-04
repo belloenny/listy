@@ -1,0 +1,42 @@
+<div class="alert-wrapper">
+{% with messages = get_flashed_messages() %}
+{% if messages %}
+	<div class="alert alert-success">
+		<ul>
+		{% for message in messages %}
+		    <li>{{ message }}</li>
+		{% endfor %}
+		</ul>
+	</div>
+{% endif %}
+{% endwith %}
+</div>
+
+
+<div class="row top-menu">
+	<div class="col-md-6 logo">
+		<h1><a href="{{url_for('showListings')}}">Listy</a></h1>
+		<h3 style="color:#aaa"><em>Listings for days...</em></h3>
+	</div>
+	<div class="col-md-6 text-right controls">
+		{% if 'username' in login_session %}
+		<p class="no-margin">Hello, <a href="{{url_for('editProfile')}}">{{login_session['username']}}</a></p>
+		<a href="{{url_for('disconnect')}}">Logout</a>
+		<div class="clearfix"></div><!-- /.clearfix -->
+			{% if login_session['picture'] %}
+				{% if login_session['provider'] == 'google' or login_session['provider'] == 'facebook' %}
+			<div class="profile-thumbnail" style="background-image: url({{login_session['picture']}})"></div>
+				{% endif %}
+			
+				{% if login_session['provider'] == 'listy' and login_session['picture'] %}
+			<div class="profile-thumbnail" style="background-image: url({{ url_for('uploaded_file', filename=login_session['picture']) }})"></div>
+				{% endif %}
+			
+			{% else %}
+			<div class="profile-thumbnail" style="background-image: url({{ url_for('static', filename='blank_user.gif') }})"></div>
+			{% endif %}	
+		{% else %}
+		<a href="{{url_for('showLogin')}}">Log in or create account</a>
+		{% endif %}
+	</div>
+</div>

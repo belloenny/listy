@@ -1,0 +1,48 @@
+{% extends "main.html" %}
+{% block content %}
+{% include "header.html" %}
+	<div class="divider green"></div>
+	<div class="row">
+		<div class="col-md-12">
+			<h1>New Listing</h1>
+		</div>
+	</div>
+	<div class="divider green"></div>
+	<div class="row">
+		<div class="col-md-6 padding-top">
+			<form action="#" method="post" enctype="multipart/form-data">
+				<div class="form-group">
+					<label for="name"><span class="red">*</span>Name:</label>
+					<input type ="text" class="form-control" maxlength="100" name="name">
+					<div class="padding-bottom"></div>
+					<div class="form__item">
+						<label for="image">Image: <br />
+						<input type="file" name="image">
+						<div class="padding-bottom"></div>
+					</div><!-- /.form__item -->	
+					<label for="category"><span class="red">*</span>Select a Category:</label><br />
+					{% if categories %}
+						<select name="category">
+							<option value="False">Select</option>
+						{% for cat in categories %}
+							<option value="{{cat.name}}">{{cat.name}}</option>
+						{% endfor %}
+						</select>
+						<br />
+						<p>or</p>
+						<input type="text" name="new-category" placeholder="Create New Category" class="form-control" />
+					{% else %}
+						<p>No categories to display. Create a new one:</p>
+						<input type="text" name="new-category" class="form-control" />
+					{% endif %}
+					<div class="padding-bottom"></div>
+
+					<label for="description"><span class="red">*</span>Description:</label>
+					<textarea name="description" class="form-control" id="" cols="30" rows="10"></textarea>
+					<div class="padding-bottom"></div>
+					<button type="submit" class="btn btn-default" id="submit" type="submit">Create</button>
+				</div>
+			</form>
+		</div>
+	</div>
+{% endblock %}
