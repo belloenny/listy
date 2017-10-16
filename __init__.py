@@ -1,7 +1,6 @@
 from flask import Flask, make_response, session as login_session, render_template as flask_render, request, redirect, jsonify, url_for, flash, send_from_directory
 from sqlalchemy import create_engine, asc, desc
-from authentication import fbconnect, fbdisconnect, gconnect, gdisconnect, disconnect
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import sessionmaker, scoped_session
 from models import Base, User, Listing, Category
 import random
 import string
@@ -15,53 +14,53 @@ from werkzeug.utils import secure_filename
 import os
 
 app = Flask(__name__)
+app.secret_key = 'super_secret_key'
 UPLOAD_FOLDER = 'uploads'
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 CLIENT_ID = json.loads(
-    open('client_secrets.json', 'r').read())['web']['client_id']
+    open('/var/www/FlaskApp/FlaskApp/client_secrets.json', 'r').read())['web']['client_id']
 APPLICATION_NAME = "Listings Application"
 ALLOWED_EXTENSIONS = set(['txt', 'pdf', 'png', 'jpg', 'jpeg', 'gif'])
 
 # Connect to Database and create database session
-engine = create_engine('sqlite:///listings-app.db')
+engine = create_engine('sqlite://///var/www/FlaskApp/FlaskApp/listings-app.db')
 Base.metadata.bind = engine
 
-DBSession = sessionmaker(bind=engine)
-session = DBSession()
+session = scoped_session(sessionmaker(bind=engine))
 
 def render_template(template_name, **params):
     params['login_session'] = login_session
     return flask_render(template_name, **params)
 
 def login_required(func):
-    @wraps(func) # this requires an import
-    def wrapper():
+    @wraps(func)
+    def wrapper(*args):
         if 'username' not in login_session:
+            flash("You must be logged in to do that")
             return redirect('login')
         else:
-            func()
+            return func(*args)
     return wrapper
 
 def cat_exists(func):
-    @wraps(func) # this requires an import
+    @wraps(func)
     def wrapper(category_name):
         if session.query(Category).filter_by(name=category_name).scalar() is None:
             flash("This category does not exist")
             return redirect(url_for('showListings'))
         else:
-            func()
+            return func(category_name)
     return wrapper
 
 def listing_exists(func):
-    @wraps(func) # this requires an import
+    @wraps(func)
     def wrapper(listing_name):
         if session.query(Listing).filter_by(name=listing_name).scalar() is None:
             flash("This listing does not exist")
             return redirect(url_for('showListings'))
         else:
-            func(listing_name)
+            return func(listing_name)
     return wrapper
-
 # Show all listings
 @app.route('/')
 @app.route('/listy/')
@@ -70,7 +69,7 @@ def showListings():
     categories = {}
     for cat in session.query(Category).all():
         categories[cat.name] = listings.filter_by(category_id=getCategoryID(cat.name)).count()
-    return render_template('listings.html', 
+    return render_template('listings.html',
         listings=listings,
         categories=categories)
 
@@ -83,9 +82,9 @@ def showListingsByCat(category_name):
     categories = {}
     for cat in session.query(Category).all():
         categories[cat.name] = allListings.filter_by(category_id=getCategoryID(cat.name)).count()
-    return render_template('listings.html', 
-        listings=filteredListings, 
-        categories=categories, 
+    return render_template('listings.html',
+        listings=filteredListings,
+        categories=categories,
         category_name=category_name)
 
 # show listings filtered by username
@@ -97,14 +96,14 @@ def showListingsByUsername(username):
     categories = {}
     for cat in session.query(Category).all():
         categories[cat.name] = allListings.filter_by(category_id=getCategoryID(cat.name)).count()
-    return render_template('listings.html', 
+    return render_template('listings.html',
         listings=filteredListings,
-        categories=categories, 
+        categories=categories,
         category_name=username)
 
 # Create a new listing
-@login_required
 @app.route('/listy/new/', methods=['GET', 'POST'])
+@login_required
 def newListing():
     categories = session.query(Category).all()
     if request.method == 'POST':
@@ -146,8 +145,8 @@ def newListing():
                     session.add(newCategory)
                     session.commit()
                 newListing = Listing(
-                    name=request.form['name'], 
-                    description=request.form['description'], 
+                    name=request.form['name'],
+                    description=request.form['description'],
                     image=imagename,
                     category_id=getCategoryID(request.form['new-category']),
                     user_id=login_session['user_id'])
@@ -157,22 +156,22 @@ def newListing():
                 return redirect(url_for('showListings'))
             else:
                 newListing = Listing(
-                    name=request.form['name'], 
-                    description=request.form['description'], 
+                    name=request.form['name'],
+                    description=request.form['description'],
                     image=imagename,
-                    category_id=getCategoryID(request.form['category']), 
+                    category_id=getCategoryID(request.form['category']),
                     user_id=login_session['user_id'])
                 session.add(newListing)
                 flash('New Listing "%s" Successfully Created' % newListing.name)
                 session.commit()
-                return redirect(url_for('showListings'))   
+                return redirect(url_for('showListings'))
     else:
         return render_template('newListing.html', categories=categories)
 
 # Edit a listing
-@login_required
 @app.route('/listy/<listing_name>/edit', methods=['GET', 'POST'])
 @listing_exists
+@login_required
 def editListing(listing_name):
     editedListing = session.query(Listing).filter_by(name=listing_name).one()
     if login_session['user_id'] != editedListing.user_id:
@@ -333,7 +332,7 @@ def editProfile():
         return render_template('editProfile.html', user=user)
     else:
         return render_template('editProfile.html', user=user)
-    
+
 # Show a listing
 @app.route('/listy/<listing_name>/')
 @listing_exists
@@ -373,8 +372,9 @@ def allListingsByCategoryJSON():
 @app.route('/login')
 def showLogin():
     # Create anti-forgery state token
+    print login_session
     state = ''.join(random.choice(string.ascii_uppercase + string.digits)
-                    for x in xrange(32))
+                    for x in range(32))
     login_session['state'] = state
     return render_template('login.html', STATE=state)
 
@@ -385,12 +385,12 @@ def fbconnect():
         response.headers['Content-Type'] = 'application/json'
         return response
     access_token = request.data
-    print ("access token received %s " % access_token)
+    print "access token received %s " % access_token
 
-    app_id = json.loads(open('fb_client_secrets.json', 'r').read())[
+    app_id = json.loads(open('/var/www/FlaskApp/FlaskApp/fb_client_secrets.json', 'r').read())[
         'web']['app_id']
     app_secret = json.loads(
-        open('fb_client_secrets.json', 'r').read())['web']['app_secret']
+        open('/var/www/FlaskApp/FlaskApp/fb_client_secrets.json', 'r').read())['web']['app_secret']
     url = 'https://graph.facebook.com/oauth/access_token?grant_type=fb_exchange_token&client_id=%s&client_secret=%s&fb_exchange_token=%s' % (
         app_id, app_secret, access_token)
     h = httplib2.Http()
@@ -414,14 +414,14 @@ def fbconnect():
     # print "url sent for API access:%s"% url
     # print "API JSON result: %s" % result
     data = json.loads(result)
-    
+
     try:
         login_session['provider'] = 'facebook'
         login_session['username'] = data["name"]
         login_session['email'] = data["email"]
         login_session['facebook_id'] = data["id"]
     except:
-        print (data)
+        print data
 
     # The token must be stored in the login_session in order to properly logout
     login_session['access_token'] = token
@@ -470,7 +470,7 @@ def loginNewUser():
             flash("This username already exists, please select another one")
             return redirect(url_for('showLogin'))
         else:
-            newUser = User(username=request.form['username'], 
+            newUser = User(username=request.form['username'],
                 email=request.form['email'])
             newUser.hash_password(request.form['password'])
             session.add(newUser)
@@ -523,7 +523,7 @@ def gconnect():
 
     try:
         # Upgrade the authorization code into a credentials object
-        oauth_flow = flow_from_clientsecrets('client_secrets.json', scope='')
+        oauth_flow = flow_from_clientsecrets('/var/www/FlaskApp/FlaskApp/client_secrets.json', scope='')
         oauth_flow.redirect_uri = 'postmessage'
         credentials = oauth_flow.step2_exchange(code)
     except FlowExchangeError:
@@ -534,7 +534,7 @@ def gconnect():
 
     # Check that the access token is valid.
     access_token = credentials.access_token
-    print ("access token recieved %s" % access_token)
+    print "access token recieved %s" % access_token
     url = ('https://www.googleapis.com/oauth2/v1/tokeninfo?access_token=%s'
            % access_token)
     h = httplib2.Http()
@@ -557,7 +557,7 @@ def gconnect():
     if result['issued_to'] != CLIENT_ID:
         response = make_response(
             json.dumps("Token's client ID does not match app's."), 401)
-        print ("Token's client ID does not match app's.")
+        print "Token's client ID does not match app's."
         response.headers['Content-Type'] = 'application/json'
         return response
 
@@ -635,7 +635,7 @@ def gdisconnect():
 @app.route('/disconnect')
 def disconnect():
     if 'username' in login_session:
-        print (login_session['username'])
+        print login_session['username']
     if 'provider' in login_session:
         if login_session['provider'] == 'google':
             gdisconnect()
@@ -723,6 +723,5 @@ def getCategoryID(name):
 # DISCONNECT - Revoke a current user's token and reset their login_session
 
 if __name__ == '__main__':
-    app.secret_key = 'super_secret_key'
     app.debug = True
-    app.run(host='0.0.0.0', port=8000)  
+    app.run(host='localhost', port=8080)

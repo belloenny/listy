@@ -1,8 +1,6 @@
 {% extends "main.html" %}
 {% block content %}
 {% include "header.html" %}
-{% if 'username' in login_session %}
-	{% endif %}
 	<div class="divider green"></div>
 	<div class="row listings-container">
 		<div class="col-md-4 categories">
@@ -18,7 +16,9 @@
 					<h2>Recent Listings</h2>
 				</div><!-- /.flex__left -->
 				<div class="flex__right">
+					{% if 'username' in login_session %}
 					<a href="{{url_for('newListing')}}">+ ADD NEW</a>
+					{% endif %}
 				</div><!-- /.flex__right -->
 				{% if category_name %}
 			<p class="filter"><span class="glyphicon glyphicon-filter"></span>{{category_name}}&nbsp;&nbsp; <a href="{{url_for('showListings')}}">&times; remove filter</a></p>

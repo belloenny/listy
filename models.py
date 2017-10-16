@@ -94,7 +94,7 @@ class Listing(Base):
       'published' : self.date.strftime("%m/%d/%Y at %I:%M %p")
     }
 
-engine = create_engine('sqlite:///listings-app.db')
+engine = create_engine('sqlite://///var/www/FlaskApp/FlaskApp/listings-app.db')
  
 
 Base.metadata.create_all(engine)
