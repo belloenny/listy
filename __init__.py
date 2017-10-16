@@ -1,6 +1,7 @@
 from flask import Flask, make_response, session as login_session, render_template as flask_render, request, redirect, jsonify, url_for, flash, send_from_directory
 from sqlalchemy import create_engine, asc, desc
 from sqlalchemy.orm import sessionmaker, scoped_session
+import psycopg2
 from models import Base, User, Listing, Category
 import random
 import string
@@ -23,7 +24,7 @@ APPLICATION_NAME = "Listings Application"
 ALLOWED_EXTENSIONS = set(['txt', 'pdf', 'png', 'jpg', 'jpeg', 'gif'])
 
 # Connect to Database and create database session
-engine = create_engine('sqlite://///var/www/FlaskApp/FlaskApp/listings-app.db')
+engine = create_engine('postgresql://catalog:password@localhost/listings')
 Base.metadata.bind = engine
 
 session = scoped_session(sessionmaker(bind=engine))

@@ -4,6 +4,7 @@ from sqlalchemy import Column, ForeignKey, Integer, String, DateTime
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship, sessionmaker
 from sqlalchemy import create_engine
+import psycopg2
 from passlib.apps import custom_app_context as pwd_context
 import random, string, datetime
 from itsdangerous import(TimedJSONWebSignatureSerializer as Serializer, BadSignature, SignatureExpired)
@@ -12,12 +13,12 @@ Base = declarative_base()
 
 secret_key = ''.join(random.choice(string.ascii_uppercase + string.digits) for x in range(32))
 class User(Base):
-    __tablename__ = 'user'
+    __tablename__ = 'users'
     id = Column(Integer, primary_key=True)
     username = Column(String(32), index=True)
     picture = Column(String)
     email = Column(String, unique=True, index=True)
-    password_hash = Column(String(64))
+    password_hash = Column(String)
 
     def hash_password(self, password):
         self.password_hash = pwd_context.encrypt(password)
@@ -76,7 +77,7 @@ class Listing(Base):
   image = Column(String)
   category_id = Column(Integer, ForeignKey('category.id'))
   category = relationship(Category)
-  user_id = Column(Integer, ForeignKey('user.id'))
+  user_id = Column(Integer, ForeignKey('users.id'))
   user = relationship(User)
   date = Column(DateTime, default=datetime.datetime.utcnow)
   
@@ -94,7 +95,7 @@ class Listing(Base):
       'published' : self.date.strftime("%m/%d/%Y at %I:%M %p")
     }
 
-engine = create_engine('sqlite://///var/www/FlaskApp/FlaskApp/listings-app.db')
+engine = create_engine('postgresql://catalog:password@localhost/listings')
  
 
 Base.metadata.create_all(engine)
