@@ -15,7 +15,7 @@ import os
 
 app = Flask(__name__)
 app.secret_key = 'super_secret_key'
-UPLOAD_FOLDER = 'uploads'
+UPLOAD_FOLDER = '/var/www/FlaskApp/FlaskApp/uploads'
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 CLIENT_ID = json.loads(
     open('/var/www/FlaskApp/FlaskApp/client_secrets.json', 'r').read())['web']['client_id']
@@ -216,9 +216,9 @@ def editListing(listing_name):
         return render_template('editListing.html', listing=editedListing, categories=categories)
 
 # delete a listing
-@login_required
 @app.route('/listy/<listing_name>/delete', methods=['GET', 'POST'])
 @listing_exists
+@login_required
 def deleteListing(listing_name):
     listingToDelete = session.query(
         Listing).filter_by(name=listing_name).one()
@@ -234,9 +234,9 @@ def deleteListing(listing_name):
         return render_template('deleteListing.html', listing=listingToDelete)
 
 # delete a category
-@login_required
 @app.route('/categories/<category_name>/delete', methods=['GET', 'POST'])
 @cat_exists
+@login_required
 def deleteCategory(category_name):
     categoryToDelete = session.query(Category).filter_by(name=category_name).one()
     if request.method == 'POST':
@@ -253,8 +253,8 @@ def deleteCategory(category_name):
         return render_template('deleteCategory.html', category=categoryToDelete)
 
 # delete account
-@login_required
 @app.route('/delete-account', methods=['GET', 'POST'])
+@login_required
 def deleteAccount():
     user = getUserInfo(login_session['user_id'])
     if request.method == 'POST':
@@ -279,8 +279,8 @@ def uploaded_file(filename):
                                filename)
 
 # edit profile
-@login_required
 @app.route('/profile', methods=['GET', 'POST'])
+@login_required
 def editProfile():
     user = getUserInfo(login_session['user_id'])
     if user.id != login_session['user_id']:
@@ -724,4 +724,4 @@ def getCategoryID(name):
 
 if __name__ == '__main__':
     app.debug = True
-    app.run(host='localhost', port=8080)
+    app.run(host='18.221.235.59', port=80)
