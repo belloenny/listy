@@ -31,7 +31,7 @@ https://askubuntu.com/questions/138423/how-do-i-change-my-timezone-to-utc-gmt
 - Logged in as grader and created .ssh folder (sudo mkdir .ssh)
 - Pasted key in authorized_keys (sudo nano .ssh/authorized_keys)
 - Changed folder permissions (sudo chmod 700 .ssh) and (sudo chmod 644 .ssh/authorized_keys)
-- Changed the owner of the folder to grader (sudo chown .ssh grader:grader)
+- Changed the owner of the folder to grader (sudo chown grader:grader .ssh)
 - Added Firewall rules and enabled it (sudo ufw allow 2200 -> sudo ufw allow www -> sudo ufw allow 123 -> sudo ufw enable)
 - Changed timezone to UTC (sudo dpkg-reconfigure tzdata) scroll to none of the above and then to UTC
 - Installed apache2 (sudo apt-get install apache2)
