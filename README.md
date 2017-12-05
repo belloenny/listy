@@ -1,8 +1,4 @@
 # Ubuntu Server Setup
-## Details
-IP: 18.221.235.59
-URL: http://18.221.235.59
-SSH PORT: 2200
 
 ## Software Installed
 apache2
